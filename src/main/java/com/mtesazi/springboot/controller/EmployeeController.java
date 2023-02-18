@@ -22,4 +22,10 @@ public class EmployeeController {
     public List<Employee> getAllEmployees(){
         return employeeRepository.findAll();
     }
+
+    //Delete employee rest api
+
+    // Create employee rest api
+
+    //Update employee rest api
 }
