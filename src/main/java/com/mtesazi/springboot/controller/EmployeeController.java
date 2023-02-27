@@ -1,67 +1,77 @@
 package com.mtesazi.springboot.controller;
 
 
-import com.mtesazi.springboot.exception.ResourceNotFoundException;
+
 import com.mtesazi.springboot.model.Employee;
 import com.mtesazi.springboot.repository.EmployeeRepository;
-import org.apache.coyote.Response;
+import com.mtesazi.springboot.service.EmployeeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
-
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+
 
 @RestController
-@RequestMapping("/api/v1/")
+@RequestMapping("/api/employees")
 @CrossOrigin(origins = "http://localhost:4200/")
 @ControllerAdvice
-public class EmployeeController extends ResponseEntityExceptionHandler {
+public class EmployeeController {
+    @Autowired
+    private EmployeeService employeeService;
+
     @Autowired
     private EmployeeRepository employeeRepository;
 
 
+    public EmployeeController(EmployeeService employeeService) {this.employeeService = employeeService;}
+
+
     //get all employees rest api
-    @GetMapping("/employees")
+    @GetMapping
     public List<Employee> getAllEmployees(){
-        return employeeRepository.findAll();
+        return employeeService.getAllEmployees();
     }
 
     // Create employee rest api
-    @PostMapping("/employees")
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public Employee createEmployee(@RequestBody Employee employee){
-        return employeeRepository.save(employee);
+        return employeeService.createEmployee(employee);
     }
 
     //get employees by Id rest api
-    @GetMapping("/employees/{id}")
-    public ResponseEntity<Employee> getEmployeeById(@PathVariable Long id){
-        Employee employee = employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not exist with id :" + id));
-        return ResponseEntity.ok(employee);
+    @GetMapping("{id}")
+    public ResponseEntity<Employee> getEmployeeById(@PathVariable("id") long employeeId){
+        return employeeService.getEmployeeById(employeeId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     //Update employee rest api
-    @RequestMapping(value = "/employees/{id}",produces = "application/json",method = RequestMethod.PUT)
-     public ResponseEntity<Employee> updateEmployee(@PathVariable Long id,@RequestBody Employee employeeDetails){
-        Employee employee = employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not exist with id :" + id));
-        employee.setFirstName(employeeDetails.getFirstName());
-        employee.setLastName(employeeDetails.getLastName());
-        employee.setAddress(employeeDetails.getAddress());
-        employee.setEmailId(employeeDetails.getEmailId());
-        employee.setTelephone(employeeDetails.getTelephone());
-        Employee updatedEmployee = employeeRepository.save(employee);
-        return ResponseEntity.ok(updatedEmployee);
-     }
+    @PutMapping("{id}")
+    public ResponseEntity<Employee> updateEmployee(@PathVariable("id") long employeeId,
+                                                   @RequestBody Employee employee){
+        return employeeService.getEmployeeById(employeeId)
+                .map(createEmployee -> {
 
-     //delete employee rest api
-    @DeleteMapping("/employees/{id}")
-    public ResponseEntity<HttpStatus> deleteEmployee(@PathVariable Long id){
-        Employee employee = employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee does not exist with id :" + id));
-        employeeRepository.deleteById(id);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+                    createEmployee.setFirstName(employee.getFirstName());
+                    createEmployee.setLastName(employee.getLastName());
+                    createEmployee.setEmailId(employee.getEmailId());
+                    createEmployee.setTelephone(employee.getTelephone());
+                    createEmployee.setAddress(employee.getAddress());
+
+                    Employee updatedEmployee = employeeService.updateEmployee(createEmployee);
+                    return new ResponseEntity<>(updatedEmployee, HttpStatus.OK);
+
+                })
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
+     //delete employee rest api
+     @DeleteMapping("{id}")
+     public ResponseEntity<String> deleteEmployee(@PathVariable("id") long employeeId){
+
+         employeeService.deleteEmployee(employeeId);
+         return new ResponseEntity<String>("Employee deleted successfully!.", HttpStatus.OK);
+     }
 }
